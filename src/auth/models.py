@@ -17,3 +17,12 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'<User {self.email}>'
+
+# Flask-Login doesn't automatically know how to talk to SQLAlchemy. We have to give it a "Translator" function.
+# This tells Flask-Login how to find a user in the database using the ID from the cookie
+
+from src.extensions import login_manager
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
