@@ -32,4 +32,4 @@ jobs:
         SECRET_KEY: testing-key
         FLASK_ENV: development
       run: |
-        pytest
+        python -m pytest
