@@ -30,6 +30,8 @@ gunicorn==25.1.0
     # via -r requirements.in
 idna==3.11
     # via email-validator
+iniconfig==2.3.0
+    # via pytest
 itsdangerous==2.2.0
     # via
     #   flask
@@ -43,7 +45,15 @@ markupsafe==3.0.3
     #   werkzeug
     #   wtforms
 packaging==26.0
-    # via gunicorn
+    # via
+    #   gunicorn
+    #   pytest
+pluggy==1.6.0
+    # via pytest
+pygments==2.19.2
+    # via pytest
+pytest==9.0.2
+    # via -r requirements.in
 sqlalchemy==2.0.46
     # via flask-sqlalchemy
 typing-extensions==4.15.0

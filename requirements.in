@@ -5,3 +5,4 @@ Flask-WTF             # Security & Form Validation
 email-validator       # Required by WTForms to check real emails
 Flask-Login           # Manages the User Session (Cookies, Login/Logout state)
 Werkzeug              # For password hashing (generate_password_hash)
+pytest
