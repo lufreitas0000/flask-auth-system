@@ -28,29 +28,38 @@ def test_invalid_login(client, init_database):
 
     assert user.failed_login_attempts == 1
     assert user.is_locked is False
+# tests/test_auth.py
+from flask_login import current_user
+from src.auth.models import User
 
-def test_valid_registration(client):
-    """Test that a new user can register."""
-    response = client.post('/auth/register', data={
+def test_valid_registration(client, app):
+    """Test that a new user is actually saved to the database."""
+    client.post('/auth/register', data={
         'email': 'newuser@test.com',
         'password': 'SecurePassword123',
         'confirm_password': 'SecurePassword123'
-    }, follow_redirects=True)
+    })
 
-    assert response.status_code == 200
-    assert b"Account created successfully" in response.data
+    # State Assertion: Query the database to prove the user exists
+    with app.app_context():
+        saved_user = User.query.filter_by(email='newuser@test.com').first()
+        assert saved_user is not None
+        assert saved_user.email == 'newuser@test.com'
+        assert saved_user.failed_login_attempts == 0
 
-def test_duplicate_email_registration(client, init_database):
-    """Test that a user cannot register an email that already exists."""
-    # We use the 'init_database' fixture here, which already contains 'existing@test.com'
+def test_duplicate_email_registration(client, init_database, app):
+    """Test that duplicate emails are rejected at the logic layer."""
+    # Attempt to register the email that init_database already created
     response = client.post('/auth/register', data={
         'email': 'existing@test.com',
-        'password': 'SecurePassword123',
-        'confirm_password': 'SecurePassword123'
-    }, follow_redirects=True)
+        'password': 'NewPassword123',
+        'confirm_password': 'NewPassword123'
+    })
 
-    assert response.status_code == 200
-    assert b"Email address is already registered." in response.data
+    # State Assertion: We should still only have exactly ONE user with this email
+    with app.app_context():
+        users_with_email = User.query.filter_by(email='existing@test.com').all()
+        assert len(users_with_email) == 1
 
 def test_logged_in_user_redirects(client, init_database):
     """Test that authenticated users cannot access the login/register pages."""

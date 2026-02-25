@@ -1,22 +1,30 @@
 from src.extensions import db
 from flask_login import UserMixin
 from datetime import datetime, timezone
+from typing import Optional
 
 class User(UserMixin, db.Model):
+    """
+    The core User model representing an authenticated entity in the system.
+    """
     __tablename__ = "users"
 
     id = db.Column(db.Integer,primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
 
-    # UX
+    # security and state
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
     failed_login_attempts = db.Column(db.Integer, default=0)
     is_locked = db.Column(db.Boolean, default=False)
+    locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # profile data
     username = db.Column(db.String(50), unique=True, nullable=True)
     bio = db.Column(db.String(255), nullable=True)
-    locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # relationships
     audit_logs = db.relationship('AuditLog', backref='user', lazy=True)
 
     def __repr__(self):
@@ -25,6 +33,9 @@ class User(UserMixin, db.Model):
 
 
 class AuditLog(db.Model):
+    """
+    Tracks historical authentication events for security auditing.
+    """
     __tablename__ = "audit_logs"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -48,4 +59,5 @@ from src.extensions import login_manager
 
 @login_manager.user_loader
 def load_user(user_id):
+    """Retrieves a user by their ID from the encrypted session cookie."""
     return User.query.get(int(user_id))
