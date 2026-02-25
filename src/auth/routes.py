@@ -55,7 +55,7 @@ def login():
                 if user.failed_login_attempts >= 5:
                     user.is_locked = True
                 db.session.commit()
-            flash('Invalid email or password','danger')
+            flash('Invalid email or password.','danger')
     return render_template('auth/login.html', form=form)
 
 @auth_bp.route('/logout')
