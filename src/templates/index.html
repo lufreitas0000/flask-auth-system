@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome - Flask Auth{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin-top: 3rem;">
+    <h1>Welcome to the Flask Auth System</h1>
+    <p style="margin-top: 1rem; color: var(--text-muted);">
+        A production-ready Modular Monolith built with Flask and SQLAlchemy.
+    </p>
+
+    {% if not current_user.is_authenticated %}
+    <div style="margin-top: 2rem;">
+        <a href="{{ url_for('auth.register') }}" class="btn"
+            style="text-decoration: none; padding: 1rem 2rem; display: inline-block; width: auto; margin-right: 1rem;">Create
+            an Account</a>
+        <a href="{{ url_for('auth.login') }}"
+            style="color: var(--primary-color); font-weight: 600; text-decoration: none;">Or Log In</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

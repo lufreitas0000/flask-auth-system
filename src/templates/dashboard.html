@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Flask Auth{% endblock %}
+
+{% block content %}
+<div class="auth-card" style="max-width: 600px;">
+    <h2>Your Dashboard</h2>
+
+    <div style="margin-top: 2rem; background-color: var(--bg-color); padding: 1.5rem; border-radius: 8px;">
+        <p><strong>Email:</strong> {{ user.email }}</p>
+        <p><strong>Account Created:</strong> {{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        <p><strong>Last Login:</strong>
+            {% if user.last_login %}
+            {{ user.last_login.strftime('%Y-%m-%d %H:%M:%S') }}
+            {% else %}
+            This is your first time logging in!
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endblock %}
