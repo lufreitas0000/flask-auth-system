@@ -26,6 +26,10 @@ def create_app():
             os.makedirs(app.instance_path)
         db.create_all()
 
-    # blueprints (to be written)
+    # blueprints
+    from src.auth.routes import auth_bp
+    app.register_blueprint(auth_bp)
+    from src.main.routes import main_bp
+    app.register_blueprint(main_bp)
 
     return app

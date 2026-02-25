@@ -12,7 +12,7 @@ auth_bp = Blueprint('auth',__name__,url_prefix='/auth')
 @auth_bp.route('/register',methods=['GET','POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('auth.login'))  # home
+        return redirect(url_for('main.index'))  # home
 
     form = RegistrationForm()
     if form.validate_on_submit():
@@ -33,7 +33,7 @@ def register():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('main.dashboard'))
 
     form = LoginForm()
 
@@ -48,7 +48,7 @@ def login():
             user.failed_login_attempts = 0
             db.session.commit()
             flash('Welcome back!','success')
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('main.dashboard'))
         else:
             if user:
                 user.failed_login_attempts += 1
