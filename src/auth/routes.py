@@ -20,14 +20,20 @@ def register():
         if existing_user:
             flash('Email address is already registered.','danger')
             return redirect(url_for('auth.register'))
-        hashed_pw = generate_password_hash(form.password.data)
-        new_user = User(email=form.email.data,password_hash=hashed_pw)
 
-        db.session.add(new_user)
-        db.session.commit()
+        # Replace the db.session.add block with this:
+        try:
+            hashed_pw = generate_password_hash(form.password.data)
+            new_user = User(email=form.email.data, password_hash=hashed_pw)
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Account created successfully! Please log in.', 'success')
+            return redirect(url_for('auth.login'))
+        except Exception as e:
+            db.session.rollback() # Concern #2: Unbounded Transaction Fix
+            flash('An error occurred while creating your account.', 'danger')
+            return redirect(url_for('auth.register'))
 
-        flash('Account created successfully! Please log in.', 'success')
-        return redirect(url_for('auth.login'))
     return render_template('auth/register.html',form=form)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -51,10 +57,18 @@ def login():
             return redirect(url_for('main.dashboard'))
         else:
             if user:
-                user.failed_login_attempts += 1
+                # tell the SQL engine to do the math at the row level
+                user.failed_login_attempts = User.failed_login_attempts + 1
+                db.session.commit() # Execute the math in SQL
+                # Pull the newly calculated integer BACK from the database into Python!
+                db.session.refresh(user)
+                # NOW Python can evaluate it as a normal number!
                 if user.failed_login_attempts >= 5:
                     user.is_locked = True
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
             flash('Invalid email or password.','danger')
     return render_template('auth/login.html', form=form)
 

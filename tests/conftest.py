@@ -1,4 +1,5 @@
 # tests/conftest.py
+from flask import Flask
 import pytest
 from src import create_app
 from src.extensions import db
@@ -18,21 +19,22 @@ def app():
 
     # Create the database tables in RAM
     with app.app_context():
+        # Create fresh tables in RAM (Instantaneous)
         db.create_all()
         yield app # This hands the app over to the test
-        db.drop_all() # When the test finishes, destroy the database
+        db.drop_all() # When the test finishes, destroy the database in RAM
 
 @pytest.fixture
-def client(app):
+def client(app: Flask):
     """A test client for the app to simulate browser requests."""
     return app.test_client()
 
 @pytest.fixture
-def init_database(app):
+def init_database(app: Flask):
     """A fixture that provides a pre-populated database with one test user."""
     with app.app_context():
         from werkzeug.security import generate_password_hash
         user = User(email="existing@test.com", password_hash=generate_password_hash("password123"))
         db.session.add(user)
         db.session.commit()
-        yield db
+        return db

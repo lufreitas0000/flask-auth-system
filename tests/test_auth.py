@@ -1,6 +1,34 @@
 # tests/test_auth.py
 # simulate submitting the HTML forms using HTTP POST requests.
 
+from flask_login import current_user
+from src.auth.models import User
+
+def test_valid_login_and_logout(client, init_database):
+    """Test state changes upon login and logout."""
+    # Wrap the login in a 'with client:' block to keep the context alive!
+    with client:
+        client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
+
+        # Assert State: User is officially authenticated in the session
+        assert current_user.is_authenticated is True
+        assert current_user.email == 'existing@test.com'
+
+        client.get('/auth/logout')
+
+        # Assert State: User session is destroyed
+        assert current_user.is_authenticated is False
+
+def test_invalid_login(client, init_database):
+    """Test that wrong passwords trigger the atomic rate limit counter."""
+    client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'WrongPassword!!!'})
+
+    # Assert State: Check the actual database row
+    user = User.query.filter_by(email='existing@test.com').first()
+
+    assert user.failed_login_attempts == 1
+    assert user.is_locked is False
+
 def test_valid_registration(client):
     """Test that a new user can register."""
     response = client.post('/auth/register', data={
@@ -24,31 +52,27 @@ def test_duplicate_email_registration(client, init_database):
     assert response.status_code == 200
     assert b"Email address is already registered." in response.data
 
-def test_valid_login_and_logout(client, init_database):
-    """Test that an existing user can log in, view the dashboard, and log out."""
-    # 1. Log In
-    response = client.post('/auth/login', data={
-        'email': 'existing@test.com',
-        'password': 'password123'
-    }, follow_redirects=True)
+def test_logged_in_user_redirects(client, init_database):
+    """Test that authenticated users cannot access the login/register pages."""
+    # 1. Log the user in
+    client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
 
-    assert b"Welcome back!" in response.data
+    # 2. Try to visit the register page
+    response = client.get('/auth/register', follow_redirects=False)
 
-    # 2. Access Dashboard
-    dashboard_response = client.get('/dashboard')
-    assert dashboard_response.status_code == 200
-    assert b"Your Dashboard" in dashboard_response.data
-    assert b"existing@test.com" in dashboard_response.data
+    # 3. Assert they are redirected (302 status code) instead of seeing the page (200)
+    assert response.status_code == 302
+    assert '/dashboard' in response.location or '/' in response.location
 
-    # 3. Log Out
-    logout_response = client.get('/auth/logout', follow_redirects=True)
-    assert b"You have been logged out." in logout_response.data
+def test_account_lockout(client, init_database):
+    """Test that 5 failed attempts locks the account."""
+    # Fail the login 5 times in a row
+    for _ in range(5):
+        client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'wrong'})
 
-def test_invalid_login(client, init_database):
-    """Test that wrong passwords get rejected."""
-    response = client.post('/auth/login', data={
-        'email': 'existing@test.com',
-        'password': 'WrongPassword!!!'
-    }, follow_redirects=True)
+    # Check the database state
+    from src.auth.models import User
+    user = User.query.filter_by(email='existing@test.com').first()
 
-    assert b"Invalid email or password." in response.data
+    assert user.failed_login_attempts == 5
+    assert user.is_locked is True
