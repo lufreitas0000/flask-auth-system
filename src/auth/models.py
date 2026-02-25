@@ -14,6 +14,9 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime, nullable=True)
     failed_login_attempts = db.Column(db.Integer, default=0)
     is_locked = db.Column(db.Boolean, default=False)
+    username = db.Column(db.String(50), unique=True, nullable=True)
+    bio = db.Column(db.String(255), nullable=True)
+    locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
         return f'<User {self.email}>'
