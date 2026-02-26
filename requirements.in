@@ -8,3 +8,4 @@ Werkzeug              # For password hashing (generate_password_hash)
 pytest
 pytest-cov
 Flask-Migrate
+python-dotenv         # For .flaskenv

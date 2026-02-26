@@ -72,6 +72,8 @@ pytest==9.0.2
     #   pytest-cov
 pytest-cov==7.0.0
     # via -r requirements.in
+python-dotenv==1.2.1
+    # via -r requirements.in
 sqlalchemy==2.0.46
     # via
     #   alembic
