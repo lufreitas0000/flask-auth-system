@@ -19,6 +19,7 @@ def app():
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite://", # 'sqlite://' with no path means "in-memory only"
         "WTF_CSRF_ENABLED": False, # Disable CSRF tokens just for automated testing
+        "SECRET_KEY": "test-secret-key"
     })
 
     # Create the database tables in RAM
