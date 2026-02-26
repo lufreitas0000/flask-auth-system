@@ -42,3 +42,17 @@ class RequestResetForm(FlaskForm):
                             Email(message="Please enter a valid email address.")
                         ])
     submit = SubmitField('Request Password Reset')
+
+
+class ResetPasswordForm(FlaskForm):
+    """Form to submit a brand new password."""
+    password = PasswordField('New Password',
+                             validators=[
+                                 DataRequired(message="Password is required.")
+                             ])
+    confirm_password = PasswordField('Confirm New Password',
+                                     validators=[
+                                         DataRequired(message="Please confirm your password."),
+                                         EqualTo('password', message="Passwords must match.")
+                                     ])
+    submit = SubmitField('Reset Password')

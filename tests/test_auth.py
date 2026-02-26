@@ -78,7 +78,7 @@ def test_logged_in_user_redirects(client: FlaskClient, init_database: SQLAlchemy
     assert response.status_code == 302
     assert '/dashboard' in response.location or '/' in response.location
 
-def test_account_lockout(client: FlaskClient, init_database, app: Flask):
+def test_account_lockout(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
     """Test that after many failed attempts locks the account."""
     max_attempts = app.config.get('MAX_LOGIN_ATTEMPTS', 5)
 
@@ -153,3 +153,29 @@ def test_request_reset_password(client: FlaskClient, init_database: SQLAlchemy, 
     assert response_fake.status_code == 302
     assert '/login' in response_fake.location
 
+def test_reset_password_with_token(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
+    """Test the full password reset flow using a valid token."""
+
+    # 1. Generate a real token for the test user
+    with app.app_context():
+        user = User.query.filter_by(email='existing@test.com').first()
+        token = user.get_reset_token()
+
+    # 2. Simulate the user clicking the email link and submitting the new form
+    response = client.post(f'/auth/reset_password/{token}', data={
+        'password': 'brandnewpassword123',
+        'confirm_password': 'brandnewpassword123'
+    })
+
+    # 3. They should be redirected to the login page (302)
+    assert response.status_code == 302
+    assert '/login' in response.location
+
+    # 4. Prove they can now log in with the NEW password!
+    login_response = client.post('/auth/login', data={
+        'email': 'existing@test.com',
+        'password': 'brandnewpassword123'
+    })
+
+    assert login_response.status_code == 302
+    assert '/dashboard' in login_response.location

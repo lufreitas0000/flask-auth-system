@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 from src.extensions import db
 from src.auth.models import User, AuditLog
-from src.auth.forms import RegistrationForm, LoginForm, RequestResetForm
+from src.auth.forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
 
 auth_bp = Blueprint('auth',__name__,url_prefix='/auth')
 
@@ -138,3 +138,28 @@ def request_reset():
         return redirect(url_for('auth.login'))
 
     return render_template('auth/request_reset.html', form=form)
+
+@auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_token(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+
+    user = User.verify_reset_token(token)
+    if user is None:
+        flash('That is an invalid or expired token', 'warning')
+        return redirect(url_for('auth.request_reset'))
+
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        hashed_password = generate_password_hash(form.password.data)
+        user.password_hash = hashed_password
+
+        user.is_locked = False
+        user.failed_login_attempts = 0
+        user.locked_until = None
+
+        db.session.commit()
+        flash('Your password has been updated! You are now able to log in', 'success')
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/reset_token.html', title='Reset Password', form=form)
