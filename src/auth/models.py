@@ -3,18 +3,23 @@ from flask_login import UserMixin
 from datetime import datetime, timezone
 from typing import Optional
 
-class User(UserMixin, db.Model):
+class BaseModel(db.Model):
+    """An Abstract base model"""
+    __abstract__ = True
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+class User(UserMixin, BaseModel):
     """
     The core User model representing an authenticated entity in the system.
     """
     __tablename__ = "users"
 
-    id = db.Column(db.Integer,primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
 
     # security and state
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime, nullable=True)
     failed_login_attempts = db.Column(db.Integer, default=0)
     is_locked = db.Column(db.Boolean, default=False)
@@ -32,17 +37,15 @@ class User(UserMixin, db.Model):
 
 
 
-class AuditLog(db.Model):
+class AuditLog(BaseModel):
     """
     Tracks historical authentication events for security auditing.
     """
     __tablename__ = "audit_logs"
 
-    id = db.Column(db.Integer, primary_key=True)
     # The Foreign Key links this log row directly to a specific user's ID
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
-    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     ip_address = db.Column(db.String(45), nullable=True) # Supports IPv6
     was_successful = db.Column(db.Boolean, nullable=False)
 
@@ -58,6 +61,6 @@ class AuditLog(db.Model):
 from src.extensions import login_manager
 
 @login_manager.user_loader
-def load_user(user_id):
+def load_user(user_id) -> Optional[User]:
     """Retrieves a user by their ID from the encrypted session cookie."""
     return User.query.get(int(user_id))
