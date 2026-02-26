@@ -60,12 +60,12 @@ def login():
                     minutes = int(time_left.total_seconds() // 60) + 1
                     flash(f'Account locked. Try again in {minutes} minutes.', 'danger')
                     return redirect(url_for('auth.login'))
-            else:
-                # unlock account
-                user.is_locked = False
-                user.failed_login_attempts = 0
-                user.locked_until = None
-                db.session.commit()
+                else:
+                    # unlock account
+                    user.is_locked = False
+                    user.failed_login_attempts = 0
+                    user.locked_until = None
+                    db.session.commit()
 
 
         # Password check
