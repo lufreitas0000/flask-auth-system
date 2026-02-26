@@ -3,6 +3,9 @@ from flask_login import UserMixin
 from datetime import datetime, timezone
 from typing import Optional
 
+from flask import current_app
+from itsdangerous import URLSafeTimedSerializer as Serializer
+
 class BaseModel(db.Model):
     """An Abstract base model"""
     __abstract__ = True
@@ -35,6 +38,19 @@ class User(UserMixin, BaseModel):
     def __repr__(self):
         return f'<User {self.email}>'
 
+    def get_reset_token(self) -> str:
+        """Generates a cryptographically sign token containing the user ID"""
+        s = Serializer( current_app.config['SECRET_KEY'])
+        return s.dumps({'user_id':self.id})
+    @staticmethod
+    def verify_reset_token(token:str, expires_sec: int = 1800) -> Optional['User']:
+        """Verifies the token and returns the user if it is valid and not expired."""
+        s = Serializer( current_app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=expires_sec)['user_id']
+        except Exception:
+            return None
+        return User.query.get(user_id)
 
 
 class AuditLog(BaseModel):
