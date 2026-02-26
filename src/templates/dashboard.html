@@ -1,21 +1,49 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}Dashboard - Flask Auth{% endblock %}
+{% block title %}Dashboard{% end block %}
 
 {% block content %}
-<div class="auth-card" style="max-width: 600px;">
-    <h2>Your Dashboard</h2>
+<div class="row mt-5">
+    <div class="col-md-8 offset-md-2">
+        <h2>Welcome to your Dashboard!</h2>
+        <p>Hello, {{ user.email }}! You have successfully logged in.</p>
 
-    <div style="margin-top: 2rem; background-color: var(--bg-color); padding: 1.5rem; border-radius: 8px;">
-        <p><strong>Email:</strong> {{ user.email }}</p>
-        <p><strong>Account Created:</strong> {{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
-        <p><strong>Last Login:</strong>
-            {% if user.last_login %}
-            {{ user.last_login.strftime('%Y-%m-%d %H:%M:%S') }}
-            {% else %}
-            This is your first time logging in!
-            {% endif %}
-        </p>
+        <hr class="my-4">
+
+        <h4 class="mb-3">Recent Security Activity</h4>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date & Time (UTC)</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ log.ip_address or 'Unknown' }}</td>
+                        <td>
+                            {% if log.was_successful %}
+                            <span class="badge bg-success">Success</span>
+                            {% else %}
+                            <span class="badge bg-danger">Failed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center">No recent security activity found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4">
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-danger">Log Out</a>
+        </div>
     </div>
 </div>
-{% endblock %}
+{% end block %}

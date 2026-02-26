@@ -32,4 +32,4 @@ class LoginForm(FlaskForm):
                                  DataRequired(message="Password is required.")
                              ])
 
-    submit = SubmitField('Sign In')
+    submit = SubmitField('Log In')

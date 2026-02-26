@@ -19,12 +19,9 @@ def create_app():
     login_manager.login_view = 'auth.login'
     login_manager.login_message_category = 'info'
 
-    # create db tables
-    with app.app_context():
-        from src.auth import models
-        if not os.path.exists(app.instance_path):
-            os.makedirs(app.instance_path)
-        db.create_all()
+    # initialize flask migrate
+    from src.extensions import migrate
+    migrate.init_app(app,db)
 
     # blueprints
     from src.auth.routes import auth_bp

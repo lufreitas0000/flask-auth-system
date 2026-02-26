@@ -1,13 +1,17 @@
 # tests/conftest.py
-from flask import Flask
+import os
 import pytest
+# FIX: Force the in-memory database BEFORE the app or config is imported!
+# This prevents SQLAlchemy from trying to build an engine for instance/app.db
+os.environ['DATABASE_URL'] = "sqlite://"
+from flask import Flask
 from src import create_app
 from src.extensions import db
 from src.auth.models import User
 
 @pytest.fixture
 def app():
-    """Creates a fresh Flask application for each test."""
+    """Creates a fresh Flask application and fresh RAM database for each test."""
     app = create_app()
 
     # Override configuration for testing
@@ -15,6 +19,7 @@ def app():
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite://", # 'sqlite://' with no path means "in-memory only"
         "WTF_CSRF_ENABLED": False, # Disable CSRF tokens just for automated testing
+        "SECRET_KEY": "test-secret-key"
     })
 
     # Create the database tables in RAM
