@@ -138,3 +138,18 @@ def test_lockout_duration(client: FlaskClient, init_database: SQLAlchemy, app: F
             user = User.query.filter_by(email='existing@test.com').first()
             assert user.is_locked is False
             assert user.failed_login_attempts == 0
+
+
+def test_request_reset_password(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
+    """Test that requesting a password reset works and prevents email enumeration."""
+
+    # 1. Test with an EXISTING email
+    response_real = client.post('/auth/reset_password', data={'email': 'existing@test.com'})
+    assert response_real.status_code == 302
+    assert '/login' in response_real.location
+
+    # 2. Test with a NON-EXISTENT email
+    response_fake = client.post('/auth/reset_password', data={'email': 'hacker@test.com'})
+    assert response_fake.status_code == 302
+    assert '/login' in response_fake.location
+

@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 from src.extensions import db
 from src.auth.models import User, AuditLog
-from src.auth.forms import RegistrationForm, LoginForm
+from src.auth.forms import RegistrationForm, LoginForm, RequestResetForm
 
 auth_bp = Blueprint('auth',__name__,url_prefix='/auth')
 
@@ -120,3 +120,21 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
+
+@auth_bp.route('/reset_password',methods=['GET','POST'])
+def request_reset():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+
+    form = RequestResetForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            token = user.get_reset_token()
+            # We haven't installed Flask-Mail yet, so we will just print it to the server console for now!
+            current_app.logger.info(f"MOCK EMAIL: Send reset link to {user.email} -> /reset_password/{token}")
+
+        flash('If an account with that email exists, a password reset link has been sent.', 'info')
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/request_reset.html', form=form)

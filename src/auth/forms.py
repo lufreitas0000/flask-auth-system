@@ -33,3 +33,12 @@ class LoginForm(FlaskForm):
                              ])
 
     submit = SubmitField('Log In')
+
+class RequestResetForm(FlaskForm):
+    """Form for users to request a password reset link."""
+    email = StringField('Email Address',
+                        validators=[
+                            DataRequired(message="Email is required."),
+                            Email(message="Please enter a valid email address.")
+                        ])
+    submit = SubmitField('Request Password Reset')
