@@ -1,10 +1,13 @@
 # tests/test_auth.py
 # simulate submitting the HTML forms using HTTP POST requests.
 
+from flask import Flask
+from flask.testing import FlaskClient
 from flask_login import current_user
+from flask_sqlalchemy import SQLAlchemy
 from src.auth.models import User
 
-def test_valid_login_and_logout(client, init_database):
+def test_valid_login_and_logout(client: FlaskClient, init_database: SQLAlchemy):
     """Test state changes upon login and logout."""
     # Wrap the login in a 'with client:' block to keep the context alive!
     with client:
@@ -19,7 +22,7 @@ def test_valid_login_and_logout(client, init_database):
         # Assert State: User session is destroyed
         assert current_user.is_authenticated is False
 
-def test_invalid_login(client, init_database):
+def test_invalid_login(client: FlaskClient, init_database: SQLAlchemy):
     """Test that wrong passwords trigger the atomic rate limit counter."""
     client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'WrongPassword!!!'})
 
@@ -32,7 +35,7 @@ def test_invalid_login(client, init_database):
 from flask_login import current_user
 from src.auth.models import User
 
-def test_valid_registration(client, app):
+def test_valid_registration(client: FlaskClient, app: Flask):
     """Test that a new user is actually saved to the database."""
     client.post('/auth/register', data={
         'email': 'newuser@test.com',
@@ -47,7 +50,7 @@ def test_valid_registration(client, app):
         assert saved_user.email == 'newuser@test.com'
         assert saved_user.failed_login_attempts == 0
 
-def test_duplicate_email_registration(client, init_database, app):
+def test_duplicate_email_registration(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
     """Test that duplicate emails are rejected at the logic layer."""
     # Attempt to register the email that init_database already created
     response = client.post('/auth/register', data={
@@ -61,7 +64,7 @@ def test_duplicate_email_registration(client, init_database, app):
         users_with_email = User.query.filter_by(email='existing@test.com').all()
         assert len(users_with_email) == 1
 
-def test_logged_in_user_redirects(client, init_database):
+def test_logged_in_user_redirects(client: FlaskClient, init_database: SQLAlchemy):
     """Test that authenticated users cannot access the login/register pages."""
     # 1. Log the user in
     client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
@@ -73,7 +76,7 @@ def test_logged_in_user_redirects(client, init_database):
     assert response.status_code == 302
     assert '/dashboard' in response.location or '/' in response.location
 
-def test_account_lockout(client, init_database):
+def test_account_lockout(client: FlaskClient, init_database: SQLAlchemy):
     """Test that 5 failed attempts locks the account."""
     # Fail the login 5 times in a row
     for _ in range(5):

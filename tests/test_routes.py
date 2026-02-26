@@ -1,24 +1,27 @@
 # tests/test_routes.py
 
-def test_home_page(client):
+from flask.testing import FlaskClient
+
+
+def test_home_page(client: FlaskClient):
     """Test that the index page loads successfully."""
     response = client.get('/')
     assert response.status_code == 200
     assert b"Welcome to the Flask Auth System" in response.data
 
-def test_register_page(client):
+def test_register_page(client: FlaskClient):
     """Test that the register page loads."""
     response = client.get('/auth/register')
     assert response.status_code == 200
     assert b"Create an Account" in response.data
 
-def test_login_page(client):
+def test_login_page(client: FlaskClient):
     """Test that the login page loads."""
     response = client.get('/auth/login')
     assert response.status_code == 200
     assert b"Welcome Back" in response.data
 
-def test_dashboard_access_denied(client):
+def test_dashboard_access_denied(client: FlaskClient):
     """Test that an anonymous user is redirected to login if they try to view the dashboard."""
     response = client.get('/dashboard', follow_redirects=True)
     # They should be redirected to the login page

@@ -20,3 +20,14 @@ A production-oriented authentication system built with Flask. This project serve
   * `__init__.py`: The Application Factory.
   * `extensions.py`: Unbound extension declarations.
   * `auth/`: The isolated authentication module (Models, Forms, Routes).
+
+## Phase 2 Architecture
+
+* **Database Migrations (Alembic):** The schema is version-controlled via `Flask-Migrate`.
+  * To generate a migration: `python -m flask db migrate -m "message"`
+  * To apply a migration: `python -m flask db upgrade`
+* **Infrastructure Monitoring:** A liveness probe is available at `/status` to verify database connectivity and measure latency.
+* **Security Auditing:** (In Progress) Implementation of a relational `AuditLog` to track historical authentication events and IP addresses.
+
+## Testing
+The application uses `pytest` with an isolated, in-memory SQLite database (`os.environ['DATABASE_URL'] = "sqlite://"`).
