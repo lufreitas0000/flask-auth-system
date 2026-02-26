@@ -48,11 +48,18 @@ def login():
 
         # Lockout check
         if user and user.is_locked:
-            if user.locked_until and datetime.now(timezone.utc) < user.locked_until:
-                time_left = user.locked_until-datetime.now(timezone.utc)
-                minutes = int(time_left.total_seconds()//60)+1
-                flash(f'Account locked. Try again in {minutes} minutes.','danger')
-                return redirect(url_for('auth.login'))
+            if user.locked_until:
+                # FIX: SQLite strips timezones. Add UTC back if it is missing!
+                lock_expiration = user.locked_until
+                if lock_expiration.tzinfo is None:
+                    lock_expiration = lock_expiration.replace(tzinfo=timezone.utc)
+
+                if datetime.now(timezone.utc) < lock_expiration:
+                    # Still locked! Calculate remaining minutes
+                    time_left = lock_expiration - datetime.now(timezone.utc)
+                    minutes = int(time_left.total_seconds() // 60) + 1
+                    flash(f'Account locked. Try again in {minutes} minutes.', 'danger')
+                    return redirect(url_for('auth.login'))
             else:
                 # unlock account
                 user.is_locked = False
@@ -90,9 +97,10 @@ def login():
                     db.session.refresh(user)
 
                     max_attempts = current_app.config.get('MAX_LOGIN_ATTEMPTS', 5)
+                    lockout_duration = current_app.config.get('LOCKOUT_DURATION_MINUTES', 15)
                     if user.failed_login_attempts >= max_attempts:
                         user.is_locked = True
-                        user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+                        user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=lockout_duration)
 
                     log = AuditLog(
                         user_id = user.id,

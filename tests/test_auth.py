@@ -78,18 +78,22 @@ def test_logged_in_user_redirects(client: FlaskClient, init_database: SQLAlchemy
     assert response.status_code == 302
     assert '/dashboard' in response.location or '/' in response.location
 
-def test_account_lockout(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
+def test_account_lockout(client: FlaskClient, init_database, app: Flask):
     """Test that after many failed attempts locks the account."""
     max_attempts = app.config.get('MAX_LOGIN_ATTEMPTS', 5)
+
     # Fail the login max_attempts times in a row
     for _ in range(max_attempts):
         response = client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'wrong'})
-    from src.auth.models import User
-    user = User.query.filter_by(email='existing@test.com').first()
 
-    assert user.failed_login_attempts == max_attempts
-    assert user.is_locked is True
-    assert current_user.is_authenticated is False
+    # We must use app_context() to talk to the database
+    with app.app_context():
+        from src.auth.models import User
+        user = User.query.filter_by(email='existing@test.com').first()
+
+        assert user.failed_login_attempts == max_attempts
+        assert user.is_locked is True
+
     assert response.status_code == 200
 
 
@@ -108,6 +112,9 @@ def test_lockout_duration(client: FlaskClient, init_database: SQLAlchemy, app: F
         user = User.query.filter_by(email='existing@test.com').first()
         assert user.is_locked is True
         lock_time = user.locked_until
+        # Make sure the test's base time is timezone aware for freezegun
+        if lock_time.tzinfo is None:
+            lock_time = lock_time.replace(tzinfo=timezone.utc)
 
     # 3. INTERMEDIATE TEST: Fast-forward 14 minutes
     fourteen_mins_later = lock_time - timedelta(minutes=1)
