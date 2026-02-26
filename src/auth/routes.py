@@ -1,10 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from src.extensions import db
-from src.auth.models import User
+from src.auth.models import User, AuditLog
 from src.auth.forms import RegistrationForm, LoginForm
 
 auth_bp = Blueprint('auth',__name__,url_prefix='/auth')
@@ -45,27 +45,60 @@ def login():
 
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
+
+        # Lockout check
         if user and user.is_locked:
-            flash('Account locked due to too many failed attempts.','danger')
-            return redirect(url_for('auth.login'))
+            if user.locked_until and datetime.now(timezone.utc) < user.locked_until:
+                time_left = user.locked_until-datetime.now(timezone.utc)
+                minutes = int(time_left.total_seconds()//60)+1
+                flash(f'Account locked. Try again in {minutes} minutes.','danger')
+                return redirect(url_for('auth.login'))
+            else:
+                # unlock account
+                user.is_locked = False
+                user.failed_login_attempts = 0
+                user.locked_until = None
+                db.session.commit()
+
+
+        # Password check
         if user and check_password_hash(user.password_hash,form.password.data):
-            login_user(user)
-            user.last_login = datetime.now(timezone.utc)
-            user.failed_login_attempts = 0
-            db.session.commit()
-            flash('Welcome back!','success')
-            return redirect(url_for('main.dashboard'))
+            try:
+                user.last_login = datetime.now(timezone.utc)
+                user.failed_login_attempts = 0
+
+                log = AuditLog(
+                    user_id = user.id,
+                    ip_address = request.remote_addr,
+                    was_successful = True
+                )
+                db.session.add(log)
+                db.session.commit()
+
+                login_user(user)
+                flash('Welcome back!','success')
+                return redirect(url_for('main.dashboard'))
+            except Exception as e:
+                db.session.rollback()
+                flash('An error occurred during login.','danger')
         else:
             if user:
-                # tell the SQL engine to do the math at the row level
-                user.failed_login_attempts = User.failed_login_attempts + 1
-                db.session.commit() # Execute the math in SQL
-                # Pull the newly calculated integer BACK from the database into Python!
-                db.session.refresh(user)
-                # NOW Python can evaluate it as a normal number!
-                if user.failed_login_attempts >= 5:
-                    user.is_locked = True
                 try:
+                    # tell the SQL engine to do the math at the row level
+                    user.failed_login_attempts = User.failed_login_attempts + 1
+                    db.session.commit() # Execute the math in SQL
+                    db.session.refresh(user)
+
+                    if user.failed_login_attempts >= 5:
+                        user.is_locked = True
+                        user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+                    log = AuditLog(
+                        user_id = user.id,
+                        ip_address = request.remote_addr,
+                        was_successful = False
+                    )
+                    db.session.add(log)
                     db.session.commit()
                 except Exception as e:
                     db.session.rollback()
