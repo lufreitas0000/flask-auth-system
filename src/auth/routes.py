@@ -128,7 +128,7 @@ def request_reset():
 
     form = RequestResetForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+        user : User | None = User.query.filter_by(email=form.email.data).first()
         if user:
             token = user.get_reset_token()
             # We haven't installed Flask-Mail yet, so we will just print it to the server console for now!
@@ -144,7 +144,7 @@ def reset_token(token):
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
 
-    user = User.verify_reset_token(token)
+    user: User | None = User.verify_reset_token(token)
     if user is None:
         flash('That is an invalid or expired token', 'warning')
         return redirect(url_for('auth.request_reset'))

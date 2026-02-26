@@ -1,23 +1,34 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired, Email, Length, EqualTo
+from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
 
-class RegistrationForm(FlaskForm):
-    email = StringField('Email Address',
-                        validators=[
-                            DataRequired(message="Email is required."),
-                            Email(message="email")
-                        ])
+from src.auth.models import User
+
+class PasswordBaseForm(FlaskForm):
+    """A base form that provides standard password and confirmation fields."""
     password = PasswordField('Password',
                              validators=[
                                  DataRequired(message="Password is required."),
                                  Length(min=8, message="Password must be at least 8 characters long.")
                              ])
     confirm_password = PasswordField('Confirm Password',
-                            validators=[
-                                DataRequired(message="Please confirm your password."),
-                                EqualTo('password', message="Passwords must match.")
-    ])
+                                     validators=[
+                                         DataRequired(message="Please confirm your password."),
+                                         EqualTo('password', message="Passwords must match.")
+                                     ])
+
+class RegistrationForm(PasswordBaseForm):
+    email = StringField('Email Address',
+                        validators=[
+                            DataRequired(message="Email is required."),
+                            Email(message="Please enter a valid email address.")
+                        ])
+    submit = SubmitField('Sign Up')
+
+    def validate_email(self, email):
+        user = User.query.filter_by(email=email.data).first()
+        if user:
+            raise ValidationError('Email address is already registered. Please log in.')
 
     submit = SubmitField('Create Account')
 
@@ -44,15 +55,6 @@ class RequestResetForm(FlaskForm):
     submit = SubmitField('Request Password Reset')
 
 
-class ResetPasswordForm(FlaskForm):
+class ResetPasswordForm(PasswordBaseForm):
     """Form to submit a brand new password."""
-    password = PasswordField('New Password',
-                             validators=[
-                                 DataRequired(message="Password is required.")
-                             ])
-    confirm_password = PasswordField('Confirm New Password',
-                                     validators=[
-                                         DataRequired(message="Please confirm your password."),
-                                         EqualTo('password', message="Passwords must match.")
-                                     ])
     submit = SubmitField('Reset Password')
