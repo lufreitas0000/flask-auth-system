@@ -50,7 +50,8 @@ class User(UserMixin, BaseModel):
             user_id = s.loads(token, max_age=expires_sec)['user_id']
         except Exception:
             return None
-        return User.query.get(user_id)
+        #return User.query.get(user_id)
+        return db.session.get(User, user_id)
 
 
 class AuditLog(BaseModel):
