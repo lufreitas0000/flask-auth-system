@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 import time
 from sqlalchemy import text
 from src.extensions import db
+from src.auth.models import AuditLog
 
 main_bp = Blueprint('main',__name__)
 
@@ -13,7 +14,13 @@ def index():
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html',user=current_user)
+    """The private dashboard for logged-in users only."""
+    # Fetch the 10 most recent logs for the current user, sorted newest first
+    recent_logs = AuditLog.query.filter_by(user_id=current_user.id)\
+                                .order_by(AuditLog.created_at.desc())\
+                                .limit(10).all()
+
+    return render_template('dashboard.html', user=current_user, logs=recent_logs)
 
 
 @main_bp.route('/status')
