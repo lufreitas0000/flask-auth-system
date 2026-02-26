@@ -5,7 +5,9 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask_login import current_user
 from flask_sqlalchemy import SQLAlchemy
-from src.auth.models import User
+from src.auth.models import User, AuditLog
+from freezegun import freeze_time
+from datetime import datetime, timezone, timedelta
 
 def test_valid_login_and_logout(client: FlaskClient, init_database: SQLAlchemy):
     """Test state changes upon login and logout."""
@@ -88,3 +90,50 @@ def test_account_lockout(client: FlaskClient, init_database: SQLAlchemy):
 
     assert user.failed_login_attempts == 5
     assert user.is_locked is True
+
+
+
+def test_audit_log_creation(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
+    """Test that login attempts (success and failure) generate AuditLogs."""
+
+    client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
+    client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'wrong_password'})
+
+    with app.app_context():
+        logs = AuditLog.query.filter_by(user_id=1).all()
+        assert len(logs) == 2
+        assert logs[0].was_successful is True
+        assert logs[1].was_successful is False
+
+def test_15_minute_lockout_duration(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
+    """Test that the account unlocks automatically after 15 minutes."""
+
+    # 1. Lock the account by failing 5 times
+    for _ in range(5):
+        client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'wrong'})
+
+    # 2. Extract the exact time the lock was applied
+    with app.app_context():
+        user = User.query.filter_by(email='existing@test.com').first()
+        assert user.is_locked is True
+        lock_time = user.locked_until
+
+    # 3. INTERMEDIATE TEST: Fast-forward 14 minutes (Should STILL be locked)
+    fourteen_mins_later = lock_time - timedelta(minutes=1)
+    with freeze_time(fourteen_mins_later):
+        response = client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
+        # Should stay on the login page (200 OK) because they are locked
+        assert response.status_code == 200
+        assert b"Account locked" in response.data
+
+    # 4. FINAL TEST: Fast-forward 16 minutes (Should UNLOCK)
+    sixteen_mins_later = lock_time + timedelta(minutes=1)
+    with freeze_time(sixteen_mins_later):
+        response = client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
+        # Should redirect (302) to dashboard because login succeeded!
+        assert response.status_code == 302
+
+        with app.app_context():
+            user = User.query.filter_by(email='existing@test.com').first()
+            assert user.is_locked is False
+            assert user.failed_login_attempts == 0

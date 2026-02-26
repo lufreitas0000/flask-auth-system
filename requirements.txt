@@ -33,6 +33,8 @@ flask-sqlalchemy==3.1.1
     #   flask-migrate
 flask-wtf==1.2.2
     # via -r requirements.in
+freezegun==1.5.5
+    # via -r requirements.in
 greenlet==3.3.2
     # via sqlalchemy
 gunicorn==25.1.0
@@ -72,8 +74,12 @@ pytest==9.0.2
     #   pytest-cov
 pytest-cov==7.0.0
     # via -r requirements.in
+python-dateutil==2.9.0.post0
+    # via freezegun
 python-dotenv==1.2.1
     # via -r requirements.in
+six==1.17.0
+    # via python-dateutil
 sqlalchemy==2.0.46
     # via
     #   alembic
