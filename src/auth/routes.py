@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone, timedelta
@@ -89,7 +89,8 @@ def login():
                     db.session.commit() # Execute the math in SQL
                     db.session.refresh(user)
 
-                    if user.failed_login_attempts >= 5:
+                    max_attempts = current_app.config.get('MAX_LOGIN_ATTEMPTS', 5)
+                    if user.failed_login_attempts >= max_attempts:
                         user.is_locked = True
                         user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
 

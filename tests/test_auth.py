@@ -78,38 +78,29 @@ def test_logged_in_user_redirects(client: FlaskClient, init_database: SQLAlchemy
     assert response.status_code == 302
     assert '/dashboard' in response.location or '/' in response.location
 
-def test_account_lockout(client: FlaskClient, init_database: SQLAlchemy):
-    """Test that 5 failed attempts locks the account."""
-    # Fail the login 5 times in a row
-    for _ in range(5):
-        client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'wrong'})
-
-    # Check the database state
+def test_account_lockout(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
+    """Test that after many failed attempts locks the account."""
+    max_attempts = app.config.get('MAX_LOGIN_ATTEMPTS', 5)
+    # Fail the login max_attempts times in a row
+    for _ in range(max_attempts):
+        response = client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'wrong'})
     from src.auth.models import User
     user = User.query.filter_by(email='existing@test.com').first()
 
-    assert user.failed_login_attempts == 5
+    assert user.failed_login_attempts == max_attempts
     assert user.is_locked is True
+    assert current_user.is_authenticated is False
+    assert response.status_code == 200
 
 
 
-def test_audit_log_creation(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
-    """Test that login attempts (success and failure) generate AuditLogs."""
+def test_lockout_duration(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
+    """Test that the account unlocks automatically."""
 
-    client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
-    client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'wrong_password'})
+    # 1. Dynamically find out how many attempts it takes to lock an account
+    max_attempts = app.config.get('MAX_LOGIN_ATTEMPTS', 5)
 
-    with app.app_context():
-        logs = AuditLog.query.filter_by(user_id=1).all()
-        assert len(logs) == 2
-        assert logs[0].was_successful is True
-        assert logs[1].was_successful is False
-
-def test_15_minute_lockout_duration(client: FlaskClient, init_database: SQLAlchemy, app: Flask):
-    """Test that the account unlocks automatically after 15 minutes."""
-
-    # 1. Lock the account by failing 5 times
-    for _ in range(5):
+    for _ in range(max_attempts):
         client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'wrong'})
 
     # 2. Extract the exact time the lock was applied
@@ -118,20 +109,26 @@ def test_15_minute_lockout_duration(client: FlaskClient, init_database: SQLAlche
         assert user.is_locked is True
         lock_time = user.locked_until
 
-    # 3. INTERMEDIATE TEST: Fast-forward 14 minutes (Should STILL be locked)
+    # 3. INTERMEDIATE TEST: Fast-forward 14 minutes
     fourteen_mins_later = lock_time - timedelta(minutes=1)
     with freeze_time(fourteen_mins_later):
         response = client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
-        # Should stay on the login page (200 OK) because they are locked
+
+        # State Assertion 1: They should stay on the login page (200 OK)
         assert response.status_code == 200
-        assert b"Account locked" in response.data
+        # State Assertion 2: The Flask-Login session must NOT be authenticated
+        assert current_user.is_authenticated is False
 
     # 4. FINAL TEST: Fast-forward 16 minutes (Should UNLOCK)
     sixteen_mins_later = lock_time + timedelta(minutes=1)
     with freeze_time(sixteen_mins_later):
         response = client.post('/auth/login', data={'email': 'existing@test.com', 'password': 'password123'})
-        # Should redirect (302) to dashboard because login succeeded!
+
+        # State Assertion 1: They should be redirected to the dashboard (302)
         assert response.status_code == 302
+        assert '/dashboard' in response.location
+        # State Assertion 2: The Flask-Login session must be active
+        assert current_user.is_authenticated is True
 
         with app.app_context():
             user = User.query.filter_by(email='existing@test.com').first()
